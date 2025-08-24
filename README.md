@@ -1,6 +1,6 @@
-# Praxis Frontend
+# Praxis No-Code AI Builder
 
-A React/Next.js frontend for the Praxis P2P Agent Network that provides visual workflow building and real-time execution monitoring.
+A React/Next.js No-Code AI Builder for the Praxis P2P Agent Network that provides visual workflow building and real-time execution monitoring.
 
 ## Features
 
