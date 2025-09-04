@@ -15,13 +15,13 @@ A React/Next.js No-Code AI Builder for the Praxis P2P Agent Network that provide
 ### 1. Install Dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 2. Start Development Server
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 The frontend will be available at `http://localhost:3000`
