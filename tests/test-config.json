@@ -1,0 +1,102 @@
+{
+  "testEnvironment": {
+    "baseURL": "http://localhost:3000",
+    "webSocketURL": "ws://localhost:9100/ws/workflow",
+    "timeout": {
+      "navigation": 30000,
+      "action": 10000,
+      "expect": 10000,
+      "global": 60000
+    }
+  },
+  "testData": {
+    "sampleWorkflows": [
+      {
+        "name": "Data Processing Workflow",
+        "description": "Read → Validate → Transform → Save",
+        "steps": ["read file data.csv", "validate data format", "transform to JSON", "save output.json"]
+      },
+      {
+        "name": "File Management Workflow", 
+        "description": "File operations and backups",
+        "steps": ["backup documents", "compress files", "upload to cloud"]
+      }
+    ],
+    "dslCommands": [
+      "create file test.txt",
+      "delete file test.txt", 
+      "read data from input.csv",
+      "create workflow with 3 nodes",
+      "process user data with validation"
+    ]
+  },
+  "testCategories": {
+    "dsl": {
+      "name": "DSL Command Analysis",
+      "description": "Tests for natural language command parsing and analysis",
+      "priority": "high",
+      "estimatedTime": "5-10 minutes"
+    },
+    "workflow": {
+      "name": "Workflow Creation & Visualization",
+      "description": "Tests for visual workflow builder functionality",
+      "priority": "high", 
+      "estimatedTime": "10-15 minutes"
+    },
+    "importExport": {
+      "name": "Import/Export Functionality",
+      "description": "Tests for JSON/YAML workflow import and export",
+      "priority": "medium",
+      "estimatedTime": "5-10 minutes"
+    },
+    "p2p": {
+      "name": "Agent Discovery & P2P",
+      "description": "Tests for agent communication and peer-to-peer functionality",
+      "priority": "medium",
+      "estimatedTime": "10-15 minutes"
+    },
+    "realtime": {
+      "name": "Real-time Updates",
+      "description": "Tests for WebSocket connections and real-time status updates", 
+      "priority": "high",
+      "estimatedTime": "5-10 minutes"
+    },
+    "comprehensive": {
+      "name": "End-to-End Integration",
+      "description": "Full application integration tests",
+      "priority": "critical",
+      "estimatedTime": "15-20 minutes"
+    }
+  },
+  "errorScenarios": [
+    {
+      "name": "Invalid DSL Command",
+      "input": "xyz123 invalid command !@#$%",
+      "expectedResponse": "clarification or help message"
+    },
+    {
+      "name": "Network Disconnection",
+      "description": "WebSocket connection loss simulation",
+      "expectedBehavior": "graceful degradation with reconnection attempts"
+    },
+    {
+      "name": "Invalid File Import", 
+      "description": "Import malformed JSON/YAML files",
+      "expectedBehavior": "validation error with helpful message"
+    }
+  ],
+  "performanceTargets": {
+    "pageLoadTime": 3000,
+    "workflowCreationTime": 5000,
+    "commandResponseTime": 2000,
+    "webSocketConnectionTime": 1000,
+    "maxMemoryUsage": "100MB"
+  },
+  "accessibilityRequirements": {
+    "keyboardNavigation": true,
+    "screenReaderSupport": true,
+    "colorContrastRatio": 4.5,
+    "focusIndicators": true,
+    "ariaLabels": true
+  }
+}

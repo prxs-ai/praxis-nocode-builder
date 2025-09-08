@@ -4,15 +4,17 @@ import type React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, AlertCircle, Users, Wrench, Clock } from 'lucide-react'
+import { CheckCircle, AlertCircle, Users, Wrench, Clock, PlayCircle } from 'lucide-react'
 import type { DSLAnalysisResult } from '@/lib/types'
 
 interface DSLResultProps {
   result: DSLAnalysisResult
   onCreateWorkflow?: () => void
+  onExecute?: () => void
+  isExecuting?: boolean
 }
 
-export default function DSLResult({ result, onCreateWorkflow }: DSLResultProps) {
+export default function DSLResult({ result, onCreateWorkflow, onExecute, isExecuting = false }: DSLResultProps) {
   if (!result) {
     return (
       <Card className="border-red-200 bg-red-50">
@@ -123,15 +125,29 @@ export default function DSLResult({ result, onCreateWorkflow }: DSLResultProps) 
           </div>
         )}
 
-        {onCreateWorkflow && (
-          <Button 
-            onClick={onCreateWorkflow}
-            size="sm" 
-            className="w-full bg-green-600 hover:bg-green-700 text-white"
-          >
-            Create Visual Workflow
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {onCreateWorkflow && (
+            <Button 
+              onClick={onCreateWorkflow}
+              size="sm" 
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={isExecuting}
+            >
+              Create Visual Workflow
+            </Button>
+          )}
+          {onExecute && (
+            <Button 
+              onClick={onExecute}
+              size="sm" 
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              disabled={isExecuting}
+            >
+              <PlayCircle className="h-4 w-4 mr-1" />
+              {isExecuting ? 'Executing...' : 'Execute'}
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   )

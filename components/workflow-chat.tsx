@@ -11,6 +11,7 @@ import { getWebSocketClient } from '@/lib/websocket-client'
 import type { ChatMessage, WebSocketConnectionStatus, DSLAnalysisProgress, DSLAnalysisResult, DSLCommandPayload } from '@/lib/types'
 import DSLProgress from './dsl-progress'
 import DSLResult from './dsl-result'
+import ToolResultCard from './ToolResultCard'
 import { useToast } from '@/components/ui/use-toast'
 let messageCounter = 0
 const generateMessageId = (prefix: string) => {
@@ -36,6 +37,8 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
   })
   const [currentDSLProgress, setCurrentDSLProgress] = useState<DSLAnalysisProgress | null>(null)
   const [isDSLProcessing, setIsDSLProcessing] = useState(false)
+  const [currentWorkflow, setCurrentWorkflow] = useState<any>(null)
+  const [isExecuting, setIsExecuting] = useState(false)
   const [chatSize, setChatSize] = useState({ width: 480, height: 600 }) // Larger default size: w-120 h-150
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const wsClient = getWebSocketClient()
@@ -62,15 +65,33 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
       setIsConnecting(status.connecting)
     })
     const unsubscribeChatMessage = wsClient.on('chatMessage', (message: ChatMessage) => {
-      setMessages(prev => [...prev, message])
+      // Support structured tool_result messages
+      if (message.type === 'tool_result') {
+        const toolResultMessage: ChatMessage = {
+          id: generateMessageId('tool_result'),
+          content: message.content,
+          sender: 'assistant',
+          timestamp: Date.now(),
+          type: 'tool_result',
+          metadata: {
+            toolResult: message.metadata?.toolResult || (message as any).metadata?.toolResult || (message as any).metadata
+          }
+        }
+        setMessages(prev => [...prev, toolResultMessage])
+      } else {
+        setMessages(prev => [...prev, message])
+      }
     })
     const unsubscribeError = wsClient.on('error', (error: any) => {
       const errorMessage = error?.message || error || 'Unknown error occurred'
-      toast({
-        title: "Connection Error",
-        description: errorMessage,
-        variant: "destructive",
-      })
+      // Use setTimeout to avoid setState during render
+      setTimeout(() => {
+        toast({
+          title: "Connection Error",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }, 0)
       const chatErrorMessage: ChatMessage = {
         id: generateMessageId('error'),
         content: `Error: ${errorMessage}`,
@@ -85,6 +106,23 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
     const unsubscribeDSLProgress = wsClient.on('dslProgress', (progress: DSLAnalysisProgress) => {
       setCurrentDSLProgress(progress)
       setIsDSLProcessing(true)
+      
+      // Update existing progress message instead of creating new ones
+      setMessages(prevMessages => {
+        const existingProgressIndex = prevMessages.findIndex(msg => msg.type === 'dsl_progress')
+        if (existingProgressIndex !== -1) {
+          const updatedMessages = [...prevMessages]
+          updatedMessages[existingProgressIndex] = {
+            ...updatedMessages[existingProgressIndex],
+            metadata: {
+              ...updatedMessages[existingProgressIndex].metadata,
+              progress
+            }
+          }
+          return updatedMessages
+        }
+        return prevMessages
+      })
     })
     const unsubscribeDSLResult = wsClient.on('dslResult', (result: DSLAnalysisResult) => {
       setIsDSLProcessing(false)
@@ -107,16 +145,25 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
         
         const agentCount = result.matchedAgents ? result.matchedAgents.length : 0
         if (result.success) {
-          toast({
-            title: "DSL Analysis Complete",
-            description: `Found ${agentCount} matching agents in ${Math.round(result.processTime)}ms`,
-          })
+          // Store workflow and show Execute button
+          if (result.workflow) {
+            setCurrentWorkflow(result.workflow)
+            // Don't execute immediately - wait for user to click Execute
+            setTimeout(() => {
+              toast({
+                title: "Workflow Ready",
+                description: `Found ${agentCount} matching agents. Click 'Execute' to run.`,
+              })
+            }, 0)
+          }
         } else {
-          toast({
-            title: "DSL Analysis Failed",
-            description: result.error || "Unknown error occurred",
-            variant: "destructive",
-          })
+          setTimeout(() => {
+            toast({
+              title: "DSL Analysis Failed",
+              description: result.error || "Unknown error occurred",
+              variant: "destructive",
+            })
+          }, 0)
         }
         
         const resultMessage: ChatMessage = {
@@ -153,13 +200,49 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
     })
 
     const unsubscribeWorkflowComplete = wsClient.on('workflowComplete', (result: any) => {
-      // Ensure message is a string, not an object
-      const messageText = typeof result.message === 'string' 
-        ? result.message 
-        : typeof result.results === 'string'
-          ? result.results
-          : 'Workflow completed successfully!'
-      addAssistantMessage(`✅ ${messageText}`, 'success')
+      // Reset executing state
+      setIsExecuting(false)
+      
+      // Parse tool results if available
+      if (result.toolResults && Array.isArray(result.toolResults) && result.toolResults.length > 0) {
+        const toolResult = result.toolResults[0]
+        if (toolResult?.tool === 'telegram_poster' && toolResult?.result) {
+          try {
+            const telegramResult = typeof toolResult.result === 'string' 
+              ? JSON.parse(toolResult.result) 
+              : toolResult.result
+            
+            if (telegramResult.status === 'success' && telegramResult.data) {
+              const { channel_title, message_preview, telegram_link } = telegramResult.data
+              addAssistantMessage(
+                `✅ Сообщение успешно отправлено в Telegram!\n\n` +
+                `📢 Канал: ${channel_title}\n` +
+                `💬 Сообщение: "${message_preview}"\n` +
+                `🔗 Ссылка: ${telegram_link || 'Недоступна'}`,
+                'success'
+              )
+            } else if (telegramResult.message) {
+              addAssistantMessage(`✅ ${telegramResult.message}`, 'success')
+            }
+          } catch (e) {
+            // Fallback to simple message
+            const messageText = result.message || 'Telegram message sent successfully!'
+            addAssistantMessage(`✅ ${messageText}`, 'success')
+          }
+        } else {
+          // Generic tool result
+          const messageText = result.message || 'Workflow completed successfully!'
+          addAssistantMessage(`✅ ${messageText}`, 'success')
+        }
+      } else {
+        // Fallback for workflows without tool results
+        const messageText = typeof result.message === 'string' 
+          ? result.message 
+          : typeof result.results === 'string'
+            ? result.results
+            : 'Workflow completed successfully!'
+        addAssistantMessage(`✅ ${messageText}`, 'success')
+      }
       
       // Показываем детализированные результаты если есть
       if (result.nodeResults) {
@@ -172,6 +255,9 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
     })
 
     const unsubscribeWorkflowError = wsClient.on('workflowError', (error: any) => {
+      // Reset executing state
+      setIsExecuting(false)
+      
       const errorMessage = error.message || error.error || 'Workflow execution failed'
       addAssistantMessage(`❌ ${errorMessage}`, 'error')
     })
@@ -254,8 +340,8 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
   }
   const handleSendMessage = () => {
     if (!inputValue.trim() || !connectionStatus.connected) return
-
     const messageContent = inputValue.trim()
+    const isDSL = isDSLCommand(messageContent)
     const userMessage: ChatMessage = {
       id: generateMessageId('user'),
       content: messageContent,
@@ -263,39 +349,41 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
       timestamp: Date.now(),
       type: 'text',
       metadata: {
-        isDslCommand: true
+        isDslCommand: isDSL
       }
     }
     setMessages(prev => [...prev, userMessage])
-
-    // Всегда отправляем как DSL_COMMAND, бэкенд сам разберется
-    const workflowId = `workflow_${Date.now()}`
-    const dslPayload: DSLCommandPayload = {
-      command: messageContent,
-      workflowId,
-      context: {
-        timestamp: Date.now(),
-        source: 'chat'
-      }
-    }
-
-    const sent = wsClient.sendDSLCommand(dslPayload)
-
-    if (sent) {
-      setIsDSLProcessing(true)
-      const progressMessage: ChatMessage = {
-        id: generateMessageId('dsl_progress'),
-        content: 'Processing command...',
-        sender: 'assistant',
-        timestamp: Date.now(),
-        type: 'dsl_progress',
-        metadata: {
-          workflowId,
-          isDslCommand: true
+    let sent = false
+    if (isDSL) {
+      const workflowId = `workflow_${Date.now()}`
+      const dslPayload: DSLCommandPayload = {
+        command: messageContent,
+        workflowId,
+        context: {
+          timestamp: Date.now(),
+          source: 'chat'
         }
       }
-      setMessages(prev => [...prev, progressMessage])
+      sent = wsClient.sendDSLCommand(dslPayload)
+      if (sent) {
+        setIsDSLProcessing(true)
+        const progressMessage: ChatMessage = {
+          id: generateMessageId('dsl_progress'),
+          content: 'Processing DSL command...',
+          sender: 'assistant',
+          timestamp: Date.now(),
+          type: 'dsl_progress',
+          metadata: {
+            workflowId,
+            isDslCommand: true
+          }
+        }
+        setMessages(prev => [...prev, progressMessage])
+      }
     } else {
+      sent = wsClient.sendChatMessage(messageContent)
+    }
+    if (!sent) {
       toast({
         title: "Message Send Failed",
         description: "Failed to send message. Please check your connection.",
@@ -447,7 +535,9 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
                     <>
                       {messages.map((message) => (
                         <div key={message.id} className="w-full">
-                          {message.type === 'dsl_result' && message.metadata?.analysisResult ? (
+                          {message.type === 'tool_result' && message.metadata?.toolResult ? (
+                            <ToolResultCard metadata={message.metadata.toolResult} />
+                          ) : message.type === 'dsl_result' && message.metadata?.analysisResult ? (
                             <DSLResult 
                               result={message.metadata.analysisResult}
                               onCreateWorkflow={() => {
@@ -463,6 +553,29 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
                                   setMessages(prev => [...prev, workflowMessage])
                                 }
                               }}
+                              onExecute={() => {
+                                if (message.metadata?.analysisResult?.workflow) {
+                                  setIsExecuting(true)
+                                  // Send the workflow for execution
+                                  const executeMessage: ChatMessage = {
+                                    id: generateMessageId('workflow_executing'),
+                                    content: `▶️ Executing workflow...`,
+                                    sender: 'assistant',
+                                    timestamp: Date.now(),
+                                    type: 'system'
+                                  }
+                                  setMessages(prev => [...prev, executeMessage])
+                                  
+                                  // Send execution command to backend with correct format
+                                  wsClient.sendMessage('EXECUTE_WORKFLOW', {
+                                    workflow: message.metadata.analysisResult.workflow,
+                                    workflowId: message.metadata.analysisResult.workflow.id
+                                  })
+                                  
+                                  // State will be reset by workflowComplete or workflowError events
+                                }
+                              }}
+                              isExecuting={isExecuting}
                             />
                           ) : (
                             <div

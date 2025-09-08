@@ -16,7 +16,7 @@ export class WebSocketClient {
     lastPingTime: null,
     reconnectAttempts: 0
   }
-  constructor(url: string = 'ws://localhost:9100/ws/workflow') {
+  constructor(url: string = 'ws://localhost:8090/ws/workflow') {
     this.url = url
     this.initializeEventMaps()
     setTimeout(() => {
@@ -256,6 +256,25 @@ export class WebSocketClient {
         case 'PONG':
           this.handlePong()
           break
+        case 'CHAT_MESSAGE':
+          if (message.payload) {
+            // Backend chatMessage payload passthrough
+            const payload = message.payload
+            const chatMessage: ChatMessage = {
+              id: message.messageId || this.generateMessageId(),
+              content: payload.content || '',
+              sender: (payload.sender as 'user' | 'assistant') || 'assistant',
+              timestamp: Date.now(),
+              type: (payload.type as any) || 'text',
+              metadata: payload.metadata
+                ? payload.type === 'tool_result'
+                  ? { toolResult: payload.metadata }
+                  : { ...payload.metadata }
+                : undefined,
+            }
+            this.emit('chatMessage', chatMessage)
+          }
+          break
         case 'NODE_UPDATE':
           if (message.payload) {
             this.emit('workflowUpdate', message.payload as WorkflowStatusUpdate)
@@ -300,6 +319,8 @@ export class WebSocketClient {
         case 'ANALYSIS_COMPLETE':
           if (message.payload) {
             this.emit('dslResult', message.payload as DSLAnalysisResult)
+            // Also emit event for workflow builder to auto-create from DSL
+            this.emit('createWorkflowFromDSL', message.payload as DSLAnalysisResult)
             // Add result to chat
             if (message.payload.success) {
               this.emit('addAssistantMessage', {

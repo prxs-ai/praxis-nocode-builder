@@ -1,6 +1,6 @@
 {
-  "name": "praxis-nocode-builder",
-  "version": "0.0.1",
+  "name": "my-v0-project",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "build": "next build",
@@ -17,7 +17,9 @@
     "test:p2p": "playwright test tests/e2e/agent-discovery-p2p.spec.ts",
     "test:realtime": "playwright test tests/e2e/real-time-status-updates.spec.ts",
     "test:comprehensive": "playwright test tests/e2e/comprehensive-workflow-test.spec.ts",
-    "test:all": "./run-comprehensive-tests.sh",
+    "test:full-integration": "playwright test tests/e2e/praxis-full-integration.spec.ts",
+    "test:integration-headed": "playwright test tests/e2e/praxis-full-integration.spec.ts --headed",
+    "test:integration-debug": "playwright test tests/e2e/praxis-full-integration.spec.ts --debug",
     "test:report": "playwright show-report test-results/html-report"
   },
   "dependencies": {

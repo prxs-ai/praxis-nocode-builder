@@ -126,3 +126,90 @@ export const MOCK_TOOLS = [
     description: 'Send email notifications'
   }
 ]
+
+// ===== Chat and WebSocket Types (added) =====
+
+export interface ToolResultMetadata {
+  toolName: string
+  fileName: string
+  downloadUrl: string
+  datasetUrl?: string
+  preview?: any
+  username?: string
+  tweetsFound?: number
+  summary?: string
+}
+
+export interface DSLAnalysisResult {
+  success: boolean
+  command?: string
+  error?: string
+  matchedAgents?: Array<{
+    id?: string
+    name?: string
+    agentName?: string
+    capabilities?: string[]
+    reasoning?: string
+    matchScore?: number
+  }>
+  requiredMCPTools?: Array<{
+    name: string
+    description?: string
+    category?: string
+  }>
+  workflowSuggestion?: {
+    nodes: any[]
+    edges: any[]
+  }
+  workflow?: {
+    nodes: any[]
+    edges: any[]
+  }
+  processTime?: number
+}
+
+export interface ChatMessage {
+  id: string
+  content: string
+  sender: 'user' | 'assistant'
+  timestamp: number
+  type: 'text' | 'system' | 'error' | 'success' | 'dsl_progress' | 'dsl_result' | 'tool_result'
+  metadata?: {
+    isDslCommand?: boolean
+    analysisResult?: DSLAnalysisResult
+    toolResult?: ToolResultMetadata
+    [key: string]: any
+  }
+}
+
+export interface WebSocketMessage {
+  type: string
+  payload?: any
+  timestamp: string
+  messageId: string
+}
+
+export interface WebSocketConnectionStatus {
+  connected: boolean
+  connecting: boolean
+  error: string | null
+  lastPingTime: number | null
+  reconnectAttempts: number
+}
+
+export interface DSLCommandPayload {
+  command: string
+  workflowId?: string
+  context?: any
+}
+
+export interface DSLAnalysisProgress {
+  stage: 'analyzing' | 'discovering' | 'matching' | 'generating' | 'complete' | string
+  message: string
+  details?: any
+}
+
+export interface AgentAssignment { [key: string]: any }
+export interface ToolInvocation { [key: string]: any }
+export interface WorkflowExecutionTimeline { [key: string]: any }
+export interface PerformanceMetrics { [key: string]: any }
