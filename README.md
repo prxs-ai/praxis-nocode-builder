@@ -32,7 +32,7 @@ git clone https://github.com/prxs-ai/praxis-nocode-builder
 cd praxis-nocode-builder
 
 # Install dependencies
-npm install
+pnpm install
 ```
 
 ### 2. Environment Setup
@@ -45,8 +45,93 @@ NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8090/ws/workflow
 
 ### 3. Start Development Server
 ```bash
-npm run dev
+
+pnpm run dev
+
 ```
+
+The frontend will be available at `http://localhost:3000`
+
+### 3. Connect to Backend
+
+Ensure the Praxis agents are running on:
+
+- Agent-1: `http://localhost:8000` (Orchestrator)
+- Agent-2: `http://localhost:8001` (Filesystem)
+
+## Configuration
+
+The frontend automatically connects to:
+
+-**HTTP API**: `http://localhost:8000`
+
+-**WebSocket**: `ws://localhost:9100`
+
+To change these endpoints, modify `lib/api-client.ts` and `lib/websocket-client.ts`.
+
+## Project Structure
+
+```
+
+├── app/                 # Next.js app router
+
+├── components/          # React components
+
+│   ├── nodes/          # Workflow node components
+
+│   └── ui/             # UI component library
+
+├── lib/                # Utilities and API clients
+
+└── public/             # Static assets
+
+```
+
+## Available Scripts
+
+-`npm run dev` - Start development server
+
+-`npm run build` - Build for production
+
+-`npm run start` - Start production server
+
+-`npm run lint` - Run ESLint
+
+-`npm test` - Run Playwright tests
+
+## Usage
+
+1.**Create Workflow**: Drag nodes from the library to build your workflow
+
+2.**Configure Nodes**: Click nodes to set their parameters and connections
+
+3.**Execute**: Click "Execute Workflow" to run on the P2P network
+
+4.**Monitor**: Watch real-time progress and results in the execution panel
+
+## Node Types
+
+-**Input**: Workflow entry points and data sources
+
+-**Process**: Data transformation and business logic
+
+-**Conditional**: Decision branching based on conditions
+
+-**Code**: Custom code execution capabilities
+
+-**Output**: Results display and data export
+
+## Dependencies
+
+-**Next.js 14** - React framework
+
+-**ReactFlow** - Visual workflow builder
+
+-**Tailwind CSS** - Styling
+
+-**Shadcn/ui** - Component library
+
+-**Lucide React** - Icons
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
@@ -102,29 +187,29 @@ Control workflow flow:
 
 ### Development Commands
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production  
-npm run start        # Start production server
-npm run lint         # Run ESLint linting
+pnpm run dev          # Start development server
+pnpm run build        # Build for production  
+pnpm run start        # Start production server
+pnpm run lint         # Run ESLint linting
 ```
 
 ### Testing Commands
 ```bash
-npm test                    # Run all Playwright tests
-npm run test:ui             # Run tests with UI mode
-npm run test:headed         # Run tests in headed mode
-npm run test:debug          # Debug tests interactively
+pnpm test                    # Run all Playwright tests
+pnpm run test:ui             # Run tests with UI mode
+pnpm run test:headed         # Run tests in headed mode
+pnpm run test:debug          # Debug tests interactively
 
 # Specific test suites
-npm run test:dsl            # DSL command analysis tests
-npm run test:workflow       # Workflow creation tests
-npm run test:import-export  # Import/export functionality tests
-npm run test:p2p           # Agent discovery P2P tests
-npm run test:realtime      # Real-time status updates tests
-npm run test:comprehensive # Comprehensive workflow tests
-npm run test:full-integration      # Full integration tests
-npm run test:integration-headed    # Integration tests in headed mode
-npm run test:integration-debug     # Debug integration tests
+pnpm run test:dsl            # DSL command analysis tests
+pnpm run test:workflow       # Workflow creation tests
+pnpm run test:import-export  # Import/export functionality tests
+pnpm run test:p2p           # Agent discovery P2P tests
+pnpm run test:realtime      # Real-time status updates tests
+pnpm run test:comprehensive # Comprehensive workflow tests
+pnpm run test:full-integration      # Full integration tests
+pnpm run test:integration-headed    # Integration tests in headed mode
+pnpm run test:integration-debug     # Debug integration tests
 ```
 
 ### DSL Commands (Natural Language)
@@ -198,10 +283,10 @@ Run tests with: `npm test` or use specific test suites for targeted testing.
 ### Build & Deploy
 ```bash
 # Build production bundle
-npm run build
+pnpm run build
 
 # Start production server
-npm start
+pnpm start
 
 # Or deploy to Vercel/Netlify
 npx vercel deploy
@@ -231,7 +316,7 @@ For detailed technical documentation, see:
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
 3. Make your changes and test thoroughly
-4. Run the test suite: `npm test`
+4. Run the test suite: `pnpm test`
 5. Commit changes: `git commit -m 'Add feature'`
 6. Push to branch: `git push origin feature-name`
 7. Submit a pull request
