@@ -20,6 +20,12 @@
     "test:full-integration": "playwright test tests/e2e/praxis-full-integration.spec.ts",
     "test:integration-headed": "playwright test tests/e2e/praxis-full-integration.spec.ts --headed",
     "test:integration-debug": "playwright test tests/e2e/praxis-full-integration.spec.ts --debug",
+    "test:python-backend": "playwright test tests/e2e/python-backend-integration.spec.ts",
+    "test:mcp-browser": "playwright test tests/e2e/mcp-browser-integration.spec.ts", 
+    "test:mcp-comprehensive": "playwright test tests/e2e/mcp-comprehensive-test.spec.ts",
+    "test:python-headed": "playwright test tests/e2e/python-backend-integration.spec.ts --headed",
+    "test:mcp-headed": "playwright test tests/e2e/mcp-comprehensive-test.spec.ts --headed",
+    "test:all": "./run-comprehensive-tests.sh",
     "test:report": "playwright show-report test-results/html-report"
   },
   "dependencies": {

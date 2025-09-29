@@ -3,8 +3,6 @@ import { UIHelper } from './helpers/ui-helper'
 import { BackendMonitor } from './helpers/backend-monitor'
 
 test.describe('Praxis AI Workflow - Full Integration Test', () => {
-  const baseURL = process.env.BASE_URL || 'http://localhost:3000'
-  const baseHost = new URL(baseURL).host
   let uiHelper: UIHelper
   let backendMonitor: BackendMonitor
   
@@ -27,13 +25,13 @@ test.describe('Praxis AI Workflow - Full Integration Test', () => {
     
     // Set up network request logging
     page.on('request', request => {
-      if (request.url().includes(baseHost) || request.url().includes('websocket')) {
+      if (request.url().includes('localhost:3002') || request.url().includes('websocket')) {
         console.log(`[Network Request]: ${request.method()} ${request.url()}`)
       }
     })
     
     page.on('response', response => {
-      if (response.url().includes(baseHost) || response.url().includes('websocket')) {
+      if (response.url().includes('localhost:3002') || response.url().includes('websocket')) {
         console.log(`[Network Response]: ${response.status()} ${response.url()}`)
       }
     })
@@ -43,7 +41,7 @@ test.describe('Praxis AI Workflow - Full Integration Test', () => {
     console.log('📋 Test: Complete workflow creation and execution')
     
     // Step 1: Navigate to application and wait for full load
-    console.log(`🌐 Step 1: Navigating to ${baseURL}`)
+    console.log('🌐 Step 1: Navigating to http://localhost:3002')
     await page.goto('/', { waitUntil: 'networkidle' })
     
     // Take initial screenshot

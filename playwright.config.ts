@@ -12,7 +12,7 @@ export default defineConfig({
     ['line']
   ],
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    baseURL: process.env.BASE_URL || 'http://localhost:3001', // Frontend port
     trace: 'on-first-retry',
     screenshot: 'on', // Take screenshots on all test steps
     video: 'retain-on-failure',
@@ -56,7 +56,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:3000',
+    url: 'http://localhost:3001', // Frontend port
     reuseExistingServer: !process.env.CI,
     timeout: 180000, // Increased timeout for server startup
   },

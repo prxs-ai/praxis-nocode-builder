@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { MessageCircle, Send, X, Minimize2, Maximize2, Wifi, WifiOff, Sparkles } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { MessageCircle, Send, X, Minimize2, Maximize2, Wifi, WifiOff, Sparkles, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getWebSocketClient } from '@/lib/websocket-client'
 import type { ChatMessage, WebSocketConnectionStatus, DSLAnalysisProgress, DSLAnalysisResult, DSLCommandPayload } from '@/lib/types'
@@ -13,15 +14,30 @@ import DSLProgress from './dsl-progress'
 import DSLResult from './dsl-result'
 import ToolResultCard from './ToolResultCard'
 import { useToast } from '@/components/ui/use-toast'
+
+// --- helpers for params/secrets ---
+function safeParseJSON<T = any>(text: string | null, fallback: T): T {
+  if (!text) return fallback
+  try {
+    const v = JSON.parse(text)
+    if (v && typeof v === "object") return v
+    return fallback
+  } catch {
+    return fallback
+  }
+}
+
 let messageCounter = 0
 const generateMessageId = (prefix: string) => {
   messageCounter++
   return `${prefix}_${Date.now()}_${messageCounter}_${Math.random().toString(36).substr(2, 9)}`
 }
+
 interface WorkflowChatProps {
   className?: string
   onCreateWorkflow?: (result: DSLAnalysisResult) => void
 }
+
 export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowChatProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
@@ -39,10 +55,26 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
   const [isDSLProcessing, setIsDSLProcessing] = useState(false)
   const [currentWorkflow, setCurrentWorkflow] = useState<any>(null)
   const [isExecuting, setIsExecuting] = useState(false)
-  const [chatSize, setChatSize] = useState({ width: 480, height: 600 }) // Larger default size: w-120 h-150
+  const [chatSize, setChatSize] = useState({ width: 480, height: 600 })
+
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [paramsJSON, setParamsJSON] = useState<string>('{}')
+  const [secretsJSON, setSecretsJSON] = useState<string>('{}')
+  const [paramsError, setParamsError] = useState<string | null>(null)
+  const [secretsError, setSecretsError] = useState<string | null>(null)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const wsClient = getWebSocketClient()
   const { toast } = useToast()
+
+  // Load saved params/secrets from localStorage on mount
+  useEffect(() => {
+    const savedParams = localStorage.getItem("praxis.params")
+    const savedSecrets = localStorage.getItem("praxis.secrets")
+    if (savedParams) setParamsJSON(savedParams)
+    if (savedSecrets) setSecretsJSON(savedSecrets)
+  }, [])
+
   const addAssistantMessage = useCallback((content: string, type: 'text' | 'system' | 'success' = 'text') => {
     const message: ChatMessage = {
       id: generateMessageId('assistant'),
@@ -53,19 +85,20 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
     }
     setMessages(prev => [...prev, message])
   }, [])
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
   useEffect(() => {
     scrollToBottom()
   }, [messages, scrollToBottom])
+
   useEffect(() => {
     const unsubscribeStatus = wsClient.on('status', (status: WebSocketConnectionStatus) => {
       setConnectionStatus(status)
       setIsConnecting(status.connecting)
     })
     const unsubscribeChatMessage = wsClient.on('chatMessage', (message: ChatMessage) => {
-      // Support structured tool_result messages
       if (message.type === 'tool_result') {
         const toolResultMessage: ChatMessage = {
           id: generateMessageId('tool_result'),
@@ -84,7 +117,6 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
     })
     const unsubscribeError = wsClient.on('error', (error: any) => {
       const errorMessage = error?.message || error || 'Unknown error occurred'
-      // Use setTimeout to avoid setState during render
       setTimeout(() => {
         toast({
           title: "Connection Error",
@@ -106,8 +138,6 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
     const unsubscribeDSLProgress = wsClient.on('dslProgress', (progress: DSLAnalysisProgress) => {
       setCurrentDSLProgress(progress)
       setIsDSLProcessing(true)
-      
-      // Update existing progress message instead of creating new ones
       setMessages(prevMessages => {
         const existingProgressIndex = prevMessages.findIndex(msg => msg.type === 'dsl_progress')
         if (existingProgressIndex !== -1) {
@@ -127,28 +157,19 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
     const unsubscribeDSLResult = wsClient.on('dslResult', (result: DSLAnalysisResult) => {
       setIsDSLProcessing(false)
       setCurrentDSLProgress(null)
-      
-      // Prevent duplicate messages 
       const messageId = `dsl_result_${result.command}_${Date.now()}`
-      
-      // Check if we already have this message
       setMessages(prevMessages => {
         const isDuplicate = prevMessages.some(msg => 
           msg.type === 'dsl_result' && 
           msg.metadata?.analysisResult?.command === result.command &&
-          Math.abs(msg.timestamp - Date.now()) < 5000 // Within 5 seconds
+          Math.abs(msg.timestamp - Date.now()) < 5000
         )
-        
-        if (isDuplicate) {
-          return prevMessages // Skip duplicate
-        }
+        if (isDuplicate) return prevMessages
         
         const agentCount = result.matchedAgents ? result.matchedAgents.length : 0
         if (result.success) {
-          // Store workflow and show Execute button
           if (result.workflow) {
             setCurrentWorkflow(result.workflow)
-            // Don't execute immediately - wait for user to click Execute
             setTimeout(() => {
               toast({
                 title: "Workflow Ready",
@@ -165,7 +186,6 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
             })
           }, 0)
         }
-        
         const resultMessage: ChatMessage = {
           id: messageId,
           content: result.success 
@@ -178,7 +198,6 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
             analysisResult: result
           }
         }
-        
         return [...prevMessages, resultMessage]
       })
     })
@@ -186,24 +205,18 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
       addAssistantMessage(data.content, data.type as any || 'text')
     })
 
-    // Добавляем обработчики для новых событий воркфлоу
     const unsubscribeWorkflowStep = wsClient.on('workflowStep', (update: any) => {
       if (update.message) {
         addAssistantMessage(`🔧 ${update.message}`, 'system')
       }
     })
-
     const unsubscribeWorkflowStepComplete = wsClient.on('workflowStepComplete', (update: any) => {
       if (update.result && update.result.message) {
         addAssistantMessage(`✅ ${update.result.message}`, 'success')
       }
     })
-
     const unsubscribeWorkflowComplete = wsClient.on('workflowComplete', (result: any) => {
-      // Reset executing state
       setIsExecuting(false)
-      
-      // Parse tool results if available
       if (result.toolResults && Array.isArray(result.toolResults) && result.toolResults.length > 0) {
         const toolResult = result.toolResults[0]
         if (toolResult?.tool === 'telegram_poster' && toolResult?.result) {
@@ -225,17 +238,14 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
               addAssistantMessage(`✅ ${telegramResult.message}`, 'success')
             }
           } catch (e) {
-            // Fallback to simple message
             const messageText = result.message || 'Telegram message sent successfully!'
             addAssistantMessage(`✅ ${messageText}`, 'success')
           }
         } else {
-          // Generic tool result
           const messageText = result.message || 'Workflow completed successfully!'
           addAssistantMessage(`✅ ${messageText}`, 'success')
         }
       } else {
-        // Fallback for workflows without tool results
         const messageText = typeof result.message === 'string' 
           ? result.message 
           : typeof result.results === 'string'
@@ -243,29 +253,22 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
             : 'Workflow completed successfully!'
         addAssistantMessage(`✅ ${messageText}`, 'success')
       }
-      
-      // Показываем детализированные результаты если есть
       if (result.nodeResults) {
         Object.entries(result.nodeResults).forEach(([nodeId, nodeResult]: [string, any]) => {
-          if (nodeResult.result && nodeResult.result.message) {
-            addAssistantMessage(`📋 Node ${nodeId}: ${nodeResult.result.message}`, 'text')
+          if ((nodeResult as any).result && (nodeResult as any).result.message) {
+            addAssistantMessage(`📋 Node ${nodeId}: ${(nodeResult as any).result.message}`, 'text')
           }
         })
       }
     })
-
     const unsubscribeWorkflowError = wsClient.on('workflowError', (error: any) => {
-      // Reset executing state
       setIsExecuting(false)
-      
       const errorMessage = error.message || error.error || 'Workflow execution failed'
       addAssistantMessage(`❌ ${errorMessage}`, 'error')
     })
-
     const unsubscribeMCPToolResult = wsClient.on('mcpToolResult', (result: any) => {
       const fileName = result.filename || result.path || 'файл'
       const isSuccess = result.status === 'completed' || result.success
-      
       if (isSuccess) {
         addAssistantMessage(`📁 File "${fileName}" successfully created via MCP server`, 'success')
       } else {
@@ -288,7 +291,8 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
       unsubscribeWorkflowError()
       unsubscribeMCPToolResult()
     }
-  }, [wsClient])
+  }, [wsClient, addAssistantMessage, toast])
+
   const handleConnect = async () => {
     if (connectionStatus.connected) return
     setIsConnecting(true)
@@ -317,6 +321,7 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
       setIsConnecting(false)
     }
   }
+
   const handleDisconnect = () => {
     wsClient.disconnect()
     const disconnectMessage: ChatMessage = {
@@ -328,6 +333,7 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
     }
     setMessages(prev => [...prev, disconnectMessage])
   }
+
   const isDSLCommand = (text: string): boolean => {
     const dslKeywords = [
       'agent', 'workflow', 'tool', 'handoff', 'create', 'build', 'flow', 
@@ -338,10 +344,46 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
     const lowerText = text.toLowerCase()
     return dslKeywords.some(keyword => lowerText.includes(keyword))
   }
+
+  // Apply / Save params + secrets from UI  ✅ This is the important fix
+  const saveParamsAndSecrets = () => {
+    setParamsError(null)
+    setSecretsError(null)
+
+    try {
+      const parsedParams = paramsJSON.trim() ? JSON.parse(paramsJSON) : {}
+      if (parsedParams && typeof parsedParams !== "object") throw new Error("Params must be a JSON object")
+      const prettyParams = JSON.stringify(parsedParams, null, 2)
+      localStorage.setItem("praxis.params", prettyParams)
+      setParamsJSON(prettyParams) // pretty-print back into the textarea
+    } catch (e: any) {
+      setParamsError(e?.message || "Invalid JSON")
+      return
+    }
+
+    try {
+      const parsedSecrets = secretsJSON.trim() ? JSON.parse(secretsJSON) : {}
+      if (parsedSecrets && typeof parsedSecrets !== "object") throw new Error("Secrets must be a JSON object")
+      const prettySecrets = JSON.stringify(parsedSecrets, null, 2)
+      localStorage.setItem("praxis.secrets", prettySecrets)
+      setSecretsJSON(prettySecrets) // pretty-print back into the textarea
+    } catch (e: any) {
+      setSecretsError(e?.message || "Invalid JSON")
+      return
+    }
+
+    toast({ title: "Saved", description: "Params & secrets saved for this session." })
+  }
+
   const handleSendMessage = () => {
     if (!inputValue.trim() || !connectionStatus.connected) return
     const messageContent = inputValue.trim()
     const isDSL = isDSLCommand(messageContent)
+
+    // pull current params/secrets (even if UI not opened)
+    const params = safeParseJSON<Record<string, any>>(localStorage.getItem("praxis.params"), {})
+    const secrets = safeParseJSON<Record<string, string>>(localStorage.getItem("praxis.secrets"), {})
+
     const userMessage: ChatMessage = {
       id: generateMessageId('user'),
       content: messageContent,
@@ -353,16 +395,19 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
       }
     }
     setMessages(prev => [...prev, userMessage])
+
     let sent = false
     if (isDSL) {
       const workflowId = `workflow_${Date.now()}`
-      const dslPayload: DSLCommandPayload = {
+      const dslPayload: DSLCommandPayload & { params?: Record<string, any>, secrets?: Record<string, string> } = {
         command: messageContent,
         workflowId,
         context: {
           timestamp: Date.now(),
           source: 'chat'
-        }
+        },
+        params,
+        secrets
       }
       sent = wsClient.sendDSLCommand(dslPayload)
       if (sent) {
@@ -383,6 +428,7 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
     } else {
       sent = wsClient.sendChatMessage(messageContent)
     }
+
     if (!sent) {
       toast({
         title: "Message Send Failed",
@@ -400,18 +446,21 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
     }
     setInputValue('')
   }
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSendMessage()
     }
   }
+
   const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString([], { 
       hour: '2-digit', 
       minute: '2-digit' 
     })
   }
+
   const getConnectionBadge = () => {
     if (connectionStatus.connecting || isConnecting) {
       return <Badge variant="secondary" className="text-xs"><WifiOff className="w-3 h-3 mr-1" />Connecting...</Badge>
@@ -424,6 +473,7 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
     }
     return <Badge variant="outline" className="text-xs"><WifiOff className="w-3 h-3 mr-1" />Disconnected</Badge>
   }
+
   const ChatToggle = () => (
     <Button
       onClick={() => setIsOpen(!isOpen)}
@@ -442,9 +492,11 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
       )}
     </Button>
   )
+
   if (!isOpen) {
     return <ChatToggle />
   }
+
   return (
     <>
       <ChatToggle />
@@ -491,7 +543,7 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
           </CardHeader>
           {!isMinimized && (
             <CardContent className="p-0 h-[calc(100%-3.5rem)] flex flex-col">
-              {}
+              {/* Connection block */}
               {!connectionStatus.connected && (
                 <div className="p-3 border-b">
                   <Button
@@ -509,20 +561,63 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
                 </div>
               )}
               {connectionStatus.connected && (
-                <div className="p-3 border-b">
+                <div className="p-3 border-b flex items-center justify-between gap-2">
                   <Button
                     onClick={handleDisconnect}
                     size="sm"
-                    className="w-full text-xs"
+                    className="text-xs"
                     variant="outline"
                   >
                     Disconnect
                   </Button>
+                  <Button
+                    onClick={() => setShowAdvanced(s => !s)}
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    title="Params & Secrets"
+                  >
+                    <Settings className="h-3 w-3 mr-1" />
+                    Params & Secrets
+                  </Button>
                 </div>
               )}
-              {}
+
+              {/* Advanced params/secrets editor */}
+              {connectionStatus.connected && showAdvanced && (
+                <div className="p-3 border-b bg-gray-50">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-xs font-medium mb-1">Params (JSON)</div>
+                      <Textarea
+                        className="h-24 text-xs"
+                        value={paramsJSON}
+                        onChange={(e) => setParamsJSON(e.target.value)}
+                        placeholder='{"username":"alice","limit":5}'
+                      />
+                      {paramsError && <div className="text-xs text-red-600 mt-1">{paramsError}</div>}
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium mb-1">Secrets (JSON)</div>
+                      <Textarea
+                        className="h-24 text-xs"
+                        value={secretsJSON}
+                        onChange={(e) => setSecretsJSON(e.target.value)}
+                        placeholder='{"OPENAI_API_KEY":"sk-..."}'
+                      />
+                      {secretsError && <div className="text-xs text-red-600 mt-1">{secretsError}</div>}
+                    </div>
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <Button size="sm" onClick={saveParamsAndSecrets} className="text-xs">
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Messages + composer */}
               <div className="flex-1 flex flex-col overflow-hidden">
-                {}
                 <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
                   {messages.length === 0 ? (
                     <div className="text-xs text-gray-500 text-center py-4">
@@ -556,7 +651,6 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
                               onExecute={() => {
                                 if (message.metadata?.analysisResult?.workflow) {
                                   setIsExecuting(true)
-                                  // Send the workflow for execution
                                   const executeMessage: ChatMessage = {
                                     id: generateMessageId('workflow_executing'),
                                     content: `▶️ Executing workflow...`,
@@ -565,14 +659,17 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
                                     type: 'system'
                                   }
                                   setMessages(prev => [...prev, executeMessage])
-                                  
-                                  // Send execution command to backend with correct format
+
+                                  // include params & secrets from localStorage
+                                  const params = safeParseJSON<Record<string, any>>(localStorage.getItem("praxis.params"), {})
+                                  const secrets = safeParseJSON<Record<string, string>>(localStorage.getItem("praxis.secrets"), {})
+
                                   wsClient.sendMessage('EXECUTE_WORKFLOW', {
                                     workflow: message.metadata.analysisResult.workflow,
-                                    workflowId: message.metadata.analysisResult.workflow.id
+                                    workflowId: message.metadata.analysisResult.workflow.id,
+                                    params,
+                                    secrets
                                   })
-                                  
-                                  // State will be reset by workflowComplete or workflowError events
                                 }
                               }}
                               isExecuting={isExecuting}
@@ -617,7 +714,6 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
                           )}
                         </div>
                       ))}
-                      {}
                       {isDSLProcessing && currentDSLProgress && (
                         <div className="w-full">
                           <DSLProgress progress={currentDSLProgress} />
@@ -627,7 +723,7 @@ export default function WorkflowChat({ className, onCreateWorkflow }: WorkflowCh
                   )}
                   <div ref={messagesEndRef} />
                 </div>
-                {}
+
                 <div className="border-t bg-white p-3">
                   <div className="flex gap-2">
                     <Input
