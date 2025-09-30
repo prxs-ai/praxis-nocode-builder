@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0](https://github.com/prxs-ai/praxis-nocode-builder/compare/praxis-nocode-builder-v0.1.0...praxis-nocode-builder-v0.1.0) (2025-09-30)
+
+
+### Features
+
+* add parametrization ([#2](https://github.com/prxs-ai/praxis-nocode-builder/issues/2)) ([7d4fbfc](https://github.com/prxs-ai/praxis-nocode-builder/commit/7d4fbfcf7c8ab94e1ff7e10c105d2c899a3ce7da))
+
 ## [0.1.0](https://github.com/prxs-ai/praxis-nocode-builder/compare/praxis-nocode-builder-v0.1.0...praxis-nocode-builder-v0.1.0) (2025-09-25)
 
 
