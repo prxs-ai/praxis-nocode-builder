@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.0](https://github.com/prxs-ai/praxis-nocode-builder/compare/praxis-nocode-builder-v0.1.0...praxis-nocode-builder-v0.1.0) (2025-09-25)
+
+
+### Features
+
+* add new feature for front ([#4](https://github.com/prxs-ai/praxis-nocode-builder/issues/4)) ([cb3b612](https://github.com/prxs-ai/praxis-nocode-builder/commit/cb3b61227ee126c9a97bd61b5652e091352daf63))
+* add release system ([#1](https://github.com/prxs-ai/praxis-nocode-builder/issues/1)) ([de2bec6](https://github.com/prxs-ai/praxis-nocode-builder/commit/de2bec63c6b37bd3cb30d65033e19dac65da6731))
+
+
+### Bug Fixes
+
+* add missing pnpm.lock ([33bf1f1](https://github.com/prxs-ai/praxis-nocode-builder/commit/33bf1f179ca7ce291d91e7de05c20250ab643b77))
+
 ## [0.1.0](https://github.com/prxs-ai/praxis-nocode-builder/releases/tag/praxis-nocode-builder-v0.1.0) (2025-09-10)
 
 ### Initial Release
