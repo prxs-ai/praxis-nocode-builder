@@ -8,7 +8,7 @@ This directory contains comprehensive end-to-end tests for the Praxis AI workflo
 
 #### `praxis-full-integration.spec.ts`
 **Primary comprehensive integration test covering:**
-- Navigation to http://localhost:3000
+- Navigation to http://localhost:3002
 - Complete UI loading verification
 - Workflow creation via DSL commands (`CALL write_file hello.txt "Hello from UI test!"`)
 - Workflow execution and monitoring
@@ -29,7 +29,7 @@ This directory contains comprehensive end-to-end tests for the Praxis AI workflo
 
 ### Playwright Configuration (`playwright.config.ts`)
 ```typescript
-- baseURL: http://localhost:3000
+- baseURL: http://localhost:3002
 - viewport: 1920x1080
 - actionTimeout: 15000ms
 - navigationTimeout: 45000ms
@@ -63,7 +63,7 @@ npm run test:integration-debug
    docker ps --filter "name=praxis"
    ```
 
-2. **Frontend Service**: Application should be accessible at `http://localhost:3000`:
+2. **Frontend Service**: Application should be accessible at `http://localhost:3002`:
    ```bash
    npm run dev
    ```
@@ -164,7 +164,7 @@ Screenshots are saved to: `test-results/screenshots/`
 #### 1. Frontend Not Accessible
 ```bash
 # Check if service is running on correct port
-curl -f -s http://localhost:3000
+curl -f -s http://localhost:3002
 # Should return HTML content
 ```
 

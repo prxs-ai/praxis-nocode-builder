@@ -197,7 +197,7 @@ export interface WebSocketConnectionStatus {
   reconnectAttempts: number
 }
 
-export interface DSLCommandPayload {
+export interface DSLCommandPayload extends WithParamsAndSecrets {
   command: string
   workflowId?: string
   context?: any
@@ -213,3 +213,11 @@ export interface AgentAssignment { [key: string]: any }
 export interface ToolInvocation { [key: string]: any }
 export interface WorkflowExecutionTimeline { [key: string]: any }
 export interface PerformanceMetrics { [key: string]: any }
+
+export type ParamBag = Record<string, any>;
+export type SecretBag = Record<string, string>;
+
+export interface WithParamsAndSecrets {
+  params?: ParamBag;
+  secrets?: SecretBag;
+}
